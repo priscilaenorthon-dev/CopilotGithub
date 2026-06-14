@@ -102,13 +102,18 @@ def log_ts() -> str:
     return datetime.now().strftime("%H:%M:%S")
 
 def detect_game() -> bool:
+    """Detecta se o TBH está rodando procurando pelos painéis HERO, PORTAL ou STASH."""
     try:
         import win32gui
         found = []
-        win32gui.EnumWindows(
-            lambda h, l: l.append(h)
-            if win32gui.IsWindowVisible(h) and "Task Bar Hero" in win32gui.GetWindowText(h)
-            else None, found)
+        fragments = {"HERO", "PORTAL", "STASH", "TASK BAR HERO", "TBH"}
+        def _cb(hwnd, lst):
+            if win32gui.IsWindowVisible(hwnd):
+                t = win32gui.GetWindowText(hwnd).upper()
+                if any(f in t for f in fragments):
+                    lst.append(hwnd)
+            return True
+        win32gui.EnumWindows(_cb, found)
         return bool(found)
     except Exception:
         return False
@@ -289,6 +294,14 @@ class TBHBot(tk.Tk):
         tk.Label(r3, text="Templates de estágios:", font=FNB, bg=BG2, fg=WHITE, width=22, anchor="w").pack(side="left")
         self._stgtpl_lbl = tk.Label(r3, text="—", font=FNS, bg=BG2, fg=GRAY)
         self._stgtpl_lbl.pack(side="left")
+
+        # Dica sobre o dropdown de dificuldade do PORTAL
+        tip = tk.Frame(self._setup_frm, bg=BG3, padx=12, pady=6)
+        tip.pack(fill="x", pady=(0, 6))
+        tk.Label(tip,
+                 text="💡  Antes de iniciar: no painel PORTAL do jogo, selecione a dificuldade "
+                      "'Normal' no menu suspenso do topo. O bot não altera a dificuldade.",
+                 font=FNS, bg=BG3, fg=YELLOW, wraplength=580, justify="left").pack(anchor="w")
 
         # Aviso de setup se necessário
         self._setup_warn = tk.Frame(self._setup_frm, bg=BG2, padx=12, pady=8)
