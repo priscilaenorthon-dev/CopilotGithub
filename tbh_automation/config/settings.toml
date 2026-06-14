@@ -1,0 +1,21 @@
+[capture]
+monitor_index = 1
+
+[vision]
+match_threshold = 0.80
+debug_mode = false
+
+[timing]
+click_delay_ms = 150
+hover_delay_ms = 300
+portal_open_wait_ms = 600
+stage_click_wait_ms = 800
+retry_attempts = 5
+retry_delay_ms = 500
+stage_completion_timeout_ms = 300000
+
+[window]
+process_name = "TBH.exe"
+window_title_fragment = "Task Bar Hero"
+expand_on_start = true
+dpi_scale = 1.0
