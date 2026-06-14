@@ -148,3 +148,15 @@ pet_skeletons = ["2-8", "2-9"]
 pet_golems = ["3-6"]
 pet_ghosts = ["3-4", "3-5"]
 full_clear = ["1-1", "1-7", "1-8", "2-4", "3-6"]
+
+[chest_hunting]
+# Rota padrão para caça de baús azuis (melhores estágios confirmados pela comunidade)
+default_route = ["1-9", "2-8", "3-8"]
+# Rotas alternativas por dificuldade
+route_beginner = ["1-7", "1-8", "1-9"]
+route_mid = ["1-9", "2-7", "2-8", "2-9"]
+route_advanced = ["1-9", "2-8", "3-8", "3-9"]
+# Cooldown em minutos (12 min por estágio, independente)
+cooldown_minutes = 12
+# Tempo máximo de espera por baú após chefe morrer (segundos)
+chest_watch_timeout_seconds = 25

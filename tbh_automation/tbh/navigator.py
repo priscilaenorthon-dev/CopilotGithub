@@ -17,6 +17,10 @@ class NavigationError(Exception):
     pass
 
 
+# Template names used for chest detection
+CHEST_TEMPLATES = ["blue_chest_icon", "stage_box", "Item_910011"]
+
+
 class StageNavigator:
     """Orchestrates the full navigation flow through portal → stage selection."""
 
@@ -37,9 +41,14 @@ class StageNavigator:
         self.config = config
         self._timing = config.settings.timing
         self._on_status: Optional[Callable[[str], None]] = None
+        self._on_chest_detected: Optional[Callable[[str], None]] = None
 
     def set_status_callback(self, callback: Callable[[str], None]) -> None:
         self._on_status = callback
+
+    def set_chest_callback(self, callback: Callable[[str], None]) -> None:
+        """Called when a chest is detected; arg is stage_id."""
+        self._on_chest_detected = callback
 
     def _status(self, msg: str) -> None:
         logger.info(msg)
@@ -111,15 +120,73 @@ class StageNavigator:
     def wait_for_stage_completion(self) -> bool:
         """Wait until the game returns to the main window after combat ends."""
         timeout = self._timing.stage_completion_timeout_ms
-        self._status("Waiting for stage to complete...")
+        self._status("Aguardando stage completar...")
         result = self.state_detector.wait_for_state(
             GameState.MAIN_WINDOW_OPEN, timeout_ms=timeout, poll_interval_ms=1000
         )
         if result:
-            self._status("Stage complete")
+            self._status("Stage completo")
         else:
             logger.warning("Stage completion timeout reached")
         return result
+
+    def watch_for_chest(self, stage_id: str = "", timeout_seconds: int = 25) -> bool:
+        """
+        Watch the game window for a chest drop after stage completion.
+        If detected, clicks it automatically and fires the chest callback.
+        Returns True if a chest was found and clicked.
+        """
+        self._status(f"👀 Procurando baú azul... ({timeout_seconds}s)")
+        deadline = time.time() + timeout_seconds
+        found = False
+
+        while time.time() < deadline:
+            try:
+                frame = self.capture.grab_window()
+            except Exception:
+                time.sleep(0.5)
+                continue
+
+            for tmpl in CHEST_TEMPLATES:
+                match = self.matcher.find(frame, tmpl)
+                if match:
+                    self._status(f"🔵 BAÚ AZUL DETECTADO no estágio {stage_id}!")
+                    try:
+                        self.controller.click(*match.center)
+                        time.sleep(0.3)
+                        # Tenta clicar novamente caso o baú precise de double-click
+                        frame2 = self.capture.grab_window()
+                        match2 = self.matcher.find(frame2, tmpl)
+                        if match2:
+                            self.controller.click(*match2.center)
+                    except Exception as e:
+                        logger.warning(f"Chest click failed: {e}")
+
+                    if self._on_chest_detected:
+                        self._on_chest_detected(stage_id)
+
+                    self._alert_sound()
+                    found = True
+                    break
+
+            if found:
+                break
+            time.sleep(0.3)
+
+        if not found:
+            logger.debug(f"No chest detected in {stage_id} within {timeout_seconds}s")
+
+        return found
+
+    def _alert_sound(self) -> None:
+        """Play a short beep when a chest is detected (Windows only)."""
+        try:
+            import winsound
+            winsound.Beep(1000, 200)
+            time.sleep(0.1)
+            winsound.Beep(1200, 200)
+        except Exception:
+            pass
 
     # ── Internal steps ───────────────────────────────────────────────────────
 
