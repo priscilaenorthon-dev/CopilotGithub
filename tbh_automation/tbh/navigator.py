@@ -6,6 +6,7 @@ from typing import Callable, Optional
 from .capture import ScreenCapture
 from .config import Config, Stage
 from .controller import MouseController
+from .ocr import GameOCR
 from .state import GameState, GameStateDetector
 from .vision import TemplateMatcher, TemplateNotFoundError
 from .window import GameWindow
@@ -42,6 +43,7 @@ class StageNavigator:
         self._timing = config.settings.timing
         self._on_status: Optional[Callable[[str], None]] = None
         self._on_chest_detected: Optional[Callable[[str], None]] = None
+        self._ocr: Optional[GameOCR] = None
 
     def set_status_callback(self, callback: Callable[[str], None]) -> None:
         self._on_status = callback
@@ -118,17 +120,45 @@ class StageNavigator:
             current += 1
 
     def wait_for_stage_completion(self) -> bool:
-        """Wait until the game returns to the main window after combat ends."""
-        timeout = self._timing.stage_completion_timeout_ms
+        """Aguarda conclusão do estágio via OCR (texto na tela) ou detecção visual."""
+        timeout_ms = self._timing.stage_completion_timeout_ms
         self._status("Aguardando stage completar...")
-        result = self.state_detector.wait_for_state(
-            GameState.MAIN_WINDOW_OPEN, timeout_ms=timeout, poll_interval_ms=1000
-        )
-        if result:
-            self._status("Stage completo")
-        else:
-            logger.warning("Stage completion timeout reached")
-        return result
+        deadline = time.time() + timeout_ms / 1000
+        last_ocr = 0.0
+        OCR_INTERVAL = 1.5  # EasyOCR é mais lento — verifica a cada 1.5s
+
+        while time.time() < deadline:
+            now = time.time()
+            try:
+                frame = self.capture.grab_window()
+
+                # OCR: lê o texto "Estágio X-X concluído" que aparece na tela
+                if now - last_ocr >= OCR_INTERVAL:
+                    last_ocr = now
+                    ocr = self._get_ocr()
+                    if ocr.is_stage_complete(frame):
+                        sid = ocr.extract_stage_id(frame)
+                        self._status(f"✓ Stage concluído! {('(' + sid + ')') if sid else ''}")
+                        time.sleep(0.8)
+                        return True
+
+                # Fallback visual: portal_icon reaparecer indica retorno ao menu
+                if self.state_detector.detect() == GameState.MAIN_WINDOW_OPEN:
+                    self._status("Stage completo (estado detectado)")
+                    return True
+
+            except Exception:
+                pass
+
+            time.sleep(0.5)
+
+        logger.warning("Timeout aguardando conclusão do stage")
+        return False
+
+    def _get_ocr(self) -> GameOCR:
+        if self._ocr is None:
+            self._ocr = GameOCR(gpu=False)
+        return self._ocr
 
     def watch_for_chest(self, stage_id: str = "", timeout_seconds: int = 25) -> bool:
         """

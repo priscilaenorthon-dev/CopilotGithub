@@ -734,8 +734,25 @@ class TBHBot(tk.Tk):
             self.after(0, lambda: self._asset_lbl.config(
                 text=f"✅ {present_auto}/{total_auto} prontos", fg=GREEN))
 
-        # 3. Verificar templates manuais
+        # 3. Pré-carregar modelos OCR em background (evita delay na primeira corrida)
+        threading.Thread(target=self._preload_ocr, daemon=True).start()
+
+        # 4. Verificar templates manuais
         self.after(500, self._check_all_status)
+
+    def _preload_ocr(self):
+        """Pré-carrega modelos EasyOCR em background para evitar delay na primeira corrida."""
+        try:
+            self._log("🔤 Carregando modelos OCR em background...", "dim")
+            from tbh.ocr import GameOCR
+            ocr = GameOCR(gpu=False)
+            ok = ocr.preload()
+            if ok:
+                self._log("✅ OCR pronto (detecção de texto ativa)", "ok")
+            else:
+                self._log("⚠ OCR não disponível — instale via INICIAR.bat", "warn")
+        except Exception as e:
+            self._log(f"OCR não carregado: {e}", "warn")
 
     def _run_download(self, silent=False):
         script = ROOT / "scripts" / "download_assets.py"
