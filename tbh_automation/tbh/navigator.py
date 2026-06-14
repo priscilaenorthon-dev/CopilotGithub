@@ -213,10 +213,17 @@ class StageNavigator:
         )
 
     def open_portal_menu(self) -> bool:
+        # Portal panel already open — no need to click again (would close it)
+        if self.state_detector.detect() == GameState.PORTAL_MENU_OPEN:
+            return True
+
         frame = self.capture.grab_window()
         match = self.matcher.find(frame, "portal_icon")
         if not match:
-            raise NavigationError("Portal icon not found in game window")
+            raise NavigationError(
+                "Portal tab not found in HERO panel — open the HERO window and make sure "
+                "the 'Portal' tab at the bottom is visible"
+            )
 
         self.controller.click(*match.center)
         time.sleep(self._timing.portal_open_wait_ms / 1000)
@@ -225,24 +232,29 @@ class StageNavigator:
             GameState.PORTAL_MENU_OPEN, timeout_ms=3000
         )
         if not reached:
-            raise NavigationError("Portal menu did not open after clicking icon")
+            raise NavigationError("Portal panel did not open after clicking the Portal tab")
         return True
 
     def _select_stage_in_portal(self, stage: Stage) -> bool:
         act_key = f"act{stage.act_number}_header"
-        frame = self.capture.grab_window()
 
-        # Scroll to find the correct act header
-        if not self._scroll_to_act(frame, act_key):
-            logger.warning(f"Act header '{act_key}' not found after scrolling")
+        # Click the Act tab at the top of the PORTAL panel to switch to the correct act map
+        if not self._click_act_tab(act_key):
+            logger.warning(
+                f"Act tab '{act_key}' not found — the PORTAL panel may already show this act"
+            )
 
-        # Refresh frame after scrolling
+        # Wait for the map to update after tab click
+        time.sleep(0.4)
+
+        # Find and click the stage node on the map
         frame = self.capture.grab_window()
         match = self.matcher.find(frame, stage.template)
         if not match:
             raise NavigationError(
-                f"Stage template '{stage.template}' not found in portal menu. "
-                f"Ensure templates/stages/{stage.template}.png exists."
+                f"Stage node '{stage.template}' not found on the portal map. "
+                f"Capture the template: open PORTAL → click Act {stage.act_number} tab → "
+                f"use 📷 in the panel to capture stage {stage.id}."
             )
 
         self.controller.click(*match.center)
@@ -254,25 +266,14 @@ class StageNavigator:
         )
         return arrived is not None
 
-    def _scroll_to_act(self, frame, act_key: str, max_scrolls: int = 4) -> bool:
-        """Scroll the portal menu until the act header is visible."""
-        if self.matcher.find(frame, act_key):
+    def _click_act_tab(self, act_key: str) -> bool:
+        """Click the Act tab (Act 1 / Act 2 / Act 3) at the top of the PORTAL panel."""
+        frame = self.capture.grab_window()
+        match = self.matcher.find(frame, act_key)
+        if match:
+            self.controller.click(*match.center)
+            time.sleep(0.4)
             return True
-
-        rect = self.window.get_rect()
-        if rect is None:
-            return False
-
-        mid_x = rect.width // 2
-        mid_y = rect.height // 2
-
-        for _ in range(max_scrolls):
-            self.controller.scroll(mid_x, mid_y, clicks=-3)
-            time.sleep(0.3)
-            frame = self.capture.grab_window()
-            if self.matcher.find(frame, act_key):
-                return True
-
         return False
 
     def _recover(self) -> None:

@@ -71,14 +71,14 @@ STAGE_IDS = [f"{a}-{s}" for a in range(1, 4) for s in range(1, 10)]
 
 # Templates que precisam captura manual
 MANUAL_TEMPLATES = [
-    ("portal_icon",  "ui",          "Ícone do Portal",
-     "Ícone azul/roxo no canto INFERIOR DIREITO da janela do jogo"),
-    ("act1_header",  "portal_menu", "Cabeçalho  Act 1",
-     "Texto 'Act 1' dentro do menu Portal (abra o portal primeiro)"),
-    ("act2_header",  "portal_menu", "Cabeçalho  Act 2",
-     "Texto 'Act 2' dentro do menu Portal"),
-    ("act3_header",  "portal_menu", "Cabeçalho  Act 3",
-     "Texto 'Act 3' dentro do menu Portal"),
+    ("portal_icon",  "ui",          "Aba Portal  (painel HERO)",
+     "Botão 'Portal' na parte INFERIOR do painel HERO — é a 3ª aba (após Inventário e Formas)"),
+    ("act1_header",  "portal_menu", "Aba Act 1  (painel PORTAL)",
+     "Botão/texto 'Act 1' no TOPO do painel PORTAL — abra o Portal primeiro, depois capture"),
+    ("act2_header",  "portal_menu", "Aba Act 2  (painel PORTAL)",
+     "Botão/texto 'Act 2' no topo do painel PORTAL (visível ao lado de Act 1 e Act 3)"),
+    ("act3_header",  "portal_menu", "Aba Act 3  (painel PORTAL)",
+     "Botão/texto 'Act 3' no topo do painel PORTAL"),
 ]
 
 # Templates baixados automaticamente do CDN
@@ -332,9 +332,9 @@ class TBHBot(tk.Tk):
         # Templates de estágios
         sh = tk.Frame(f, bg=BG)
         sh.pack(fill="x", pady=(0, 4))
-        tk.Label(sh, text="Estágios (capture apenas os que for usar):",
+        tk.Label(sh, text="Nós de estágio no mapa (capture só os que for usar):",
                  font=FNB, bg=BG, fg=WHITE).pack(side="left")
-        tk.Label(sh, text="  Abra o Portal e role até o estágio desejado",
+        tk.Label(sh, text="  Abra o Portal → clique na aba do Act → capture o ponto do estágio no mapa",
                  font=FNS, bg=BG, fg=GRAY).pack(side="left")
 
         grid = tk.Frame(f, bg=BG)
@@ -387,7 +387,9 @@ class TBHBot(tk.Tk):
             activebackground=ACC, activeforeground=WHITE,
             relief="flat", padx=6, pady=2, cursor="hand2",
             command=lambda n=name, s=sid: self._do_capture(
-                n, "stages", f"Estágio {s}", f"Botão do estágio {s} no menu Portal"),
+                n, "stages", f"Nó do Estágio {s}",
+                f"Ponto/círculo do estágio {s} no MAPA do painel PORTAL "
+                f"(clique na aba Act {s[0]} primeiro para ver o mapa)"),
         ).pack(side="right")
 
     def _toggle_capture_panel(self):
@@ -548,8 +550,9 @@ class TBHBot(tk.Tk):
         ib.pack(fill="x", pady=(0, 10))
         tk.Label(ib,
                  text="⏱  Cada estágio tem 12 min de cooldown independente  •  "
-                      "Bot navega, aguarda o combate, detecta o baú e clica automaticamente",
-                 font=FNS, bg=BG2, fg=WHITE, wraplength=600, justify="left").pack(anchor="w")
+                      "Bot clica aba Portal → seleciona Act → clica nó do estágio no mapa → "
+                      "aguarda combate → detecta baú e clica automaticamente",
+                 font=FNS, bg=BG2, fg=WHITE, wraplength=620, justify="left").pack(anchor="w")
 
         # Seleção de rota
         rf = tk.Frame(frm, bg=BG)
